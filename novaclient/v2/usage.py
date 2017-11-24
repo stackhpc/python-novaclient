@@ -21,6 +21,20 @@ from novaclient import api_versions
 from novaclient import base
 
 
+def _get_usage_marker(usage):
+    marker = None
+    if hasattr(usage, 'server_usages') and usage.server_usages:
+        marker = usage.server_usages[-1]['instance_id']
+    return marker
+
+
+def _get_usage_list_marker(usage_list):
+    marker = None
+    if usage_list:
+        marker = _get_usage_marker(usage_list[-1])
+    return marker
+
+
 class Usage(base.Resource):
     """
     Usage contains information about a tenant's physical resource usage
@@ -92,7 +106,11 @@ class UsageManager(base.ManagerWithFind):
         """
         query_string = self._usage_query(start, end, marker, limit, detailed)
         url = '/%s%s' % (self.usage_prefix, query_string)
-        return self._list(url, 'tenant_usages')
+        result = self._list(url, 'tenant_usages')
+        if _get_usage_list_marker(result) == marker:
+            return {}
+        else:
+            return result
 
     @api_versions.wraps("2.0", "2.39")
     def get(self, tenant_id, start, end):
@@ -125,4 +143,8 @@ class UsageManager(base.ManagerWithFind):
         """
         query_string = self._usage_query(start, end, marker, limit)
         url = '/%s/%s%s' % (self.usage_prefix, tenant_id, query_string)
-        return self._get(url, 'tenant_usage')
+        result = self._get(url, 'tenant_usage')
+        if _get_usage_marker(result) == marker:
+            return {}
+        else:
+            return result

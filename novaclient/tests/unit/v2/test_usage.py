@@ -94,6 +94,23 @@ class UsageV40Test(UsageTest):
         for u in usages:
             self.assertIsInstance(u, usage.Usage)
 
+    def test_usage_list_with_paging_workaround(self):
+        now = datetime.datetime.now()
+        usages = self.cs.usage.list(
+            now, now, marker='f079e394-2222-457b-b350-bb5ecc685cdd', limit=3)
+        self.assert_request_id(usages, fakes.FAKE_REQUEST_ID_LIST)
+
+        self.cs.assert_called(
+            'GET',
+            '/os-simple-tenant-usage?' +
+            ('start=%s&' % now.isoformat()) +
+            ('end=%s&' % now.isoformat()) +
+            ('limit=3&marker=f079e394-2222-457b-b350-bb5ecc685cdd&detailed=0'))
+        for u in usages:
+            self.assertIsInstance(u, usage.Usage)
+            self.assertNotIn([su['instance_id'] for su in u.server_usages],
+                             'f079e394-2222-457b-b350-bb5ecc685cdd')
+
     def test_usage_list_detailed_with_paging(self):
         now = datetime.datetime.now()
         usages = self.cs.usage.list(
@@ -122,3 +139,19 @@ class UsageV40Test(UsageTest):
             ('end=%s&' % now.isoformat()) +
             ('limit=3&marker=some-uuid'))
         self.assertIsInstance(u, usage.Usage)
+
+    def test_usage_get_with_paging_workaround(self):
+        now = datetime.datetime.now()
+        u = self.cs.usage.get(
+            'tenantfoo', now, now, marker='some-uuid', limit=3)
+        self.assert_request_id(u, fakes.FAKE_REQUEST_ID_LIST)
+
+        self.cs.assert_called(
+            'GET',
+            '/os-simple-tenant-usage/tenantfoo?' +
+            ('start=%s&' % now.isoformat()) +
+            ('end=%s&' % now.isoformat()) +
+            ('limit=3&marker=some-uuid'))
+        self.assertIsInstance(u, usage.Usage)
+        self.assertNotIn([su['instance_id'] for su in u.server_usages],
+                         'f079e394-2222-457b-b350-bb5ecc685cdd')
